@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 1,
+  "id": "hamsti.vitals",
+  "name": "Vitals",
+  "version": "1.0.0",
+  "author": "John Cummings",
+  "license": "MIT",
+  "description": "CPU, GPU, memory, disk, and temperatures in a native Omarchy bar widget.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "activation": "on-demand",
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Vitals",
+    "description": "Live CPU, GPU, memory, disk, and temperature stats with a detail panel.",
+    "category": "System",
+    "aliases": [
+      "stats",
+      "sensors",
+      "temps",
+      "sysmon"
+    ],
+    "allowMultiple": true,
+    "defaultSection": "right",
+    "defaults": {
+      "display": "All",
+      "showCpu": "On",
+      "showMemory": "On",
+      "showGpu": "On",
+      "showDisk": "Off",
+      "showTemp": "On",
+      "compact": "Off",
+      "tempUnit": "C",
+      "refreshIntervalSec": 2,
+      "warnPercent": 90,
+      "warnTempC": 85,
+      "diskMount": "/",
+      "clickAction": "Panel"
+    },
+    "schema": [
+      {
+        "key": "display",
+        "type": "enum",
+        "label": "Show on the bar",
+        "options": [
+          "All",
+          "CPU",
+          "Memory",
+          "GPU",
+          "Disk",
+          "Temp"
+        ],
+        "defaultValue": "All",
+        "description": "All combines the enabled metrics. Pick one metric to place several Vitals widgets."
+      },
+      {
+        "key": "showCpu",
+        "type": "enum",
+        "label": "CPU",
+        "options": [
+          "On",
+          "Off"
+        ],
+        "defaultValue": "On"
+      },
+      {
+        "key": "showMemory",
+        "type": "enum",
+        "label": "Memory",
+        "options": [
+          "On",
+          "Off"
+        ],
+        "defaultValue": "On"
+      },
+      {
+        "key": "showGpu",
+        "type": "enum",
+        "label": "GPU",
+        "options": [
+          "On",
+          "Off"
+        ],
+        "defaultValue": "On"
+      },
+      {
+        "key": "showDisk",
+        "type": "enum",
+        "label": "Disk",
+        "options": [
+          "On",
+          "Off"
+        ],
+        "defaultValue": "Off"
+      },
+      {
+        "key": "showTemp",
+        "type": "enum",
+        "label": "Temperatures on the bar",
+        "options": [
+          "On",
+          "Off"
+        ],
+        "defaultValue": "On",
+        "description": "When On, CPU and GPU pills also show their current temperature."
+      },
+      {
+        "key": "compact",
+        "type": "enum",
+        "label": "Compact bar",
+        "options": [
+          "Off",
+          "On"
+        ],
+        "defaultValue": "Off",
+        "description": "Hide temperatures next to usage so the strip stays short."
+      },
+      {
+        "key": "tempUnit",
+        "type": "enum",
+        "label": "Temperature unit",
+        "options": [
+          "C",
+          "F"
+        ],
+        "defaultValue": "C"
+      },
+      {
+        "key": "refreshIntervalSec",
+        "type": "integer",
+        "label": "Refresh interval (seconds)",
+        "min": 1,
+        "max": 30,
+        "step": 1,
+        "defaultValue": 2
+      },
+      {
+        "key": "warnPercent",
+        "type": "integer",
+        "label": "Warn at usage %",
+        "min": 50,
+        "max": 100,
+        "step": 5,
+        "defaultValue": 90
+      },
+      {
+        "key": "warnTempC",
+        "type": "integer",
+        "label": "Warn at temperature (°C)",
+        "min": 50,
+        "max": 110,
+        "step": 5,
+        "defaultValue": 85
+      },
+      {
+        "key": "diskMount",
+        "type": "string",
+        "label": "Disk mount for the bar",
+        "defaultValue": "/",
+        "description": "Which filesystem the Disk pill tracks. The panel still lists every real disk."
+      },
+      {
+        "key": "clickAction",
+        "type": "enum",
+        "label": "Left click",
+        "options": [
+          "Panel",
+          "btop"
+        ],
+        "defaultValue": "Panel"
+      }
+    ]
+  }
+}
