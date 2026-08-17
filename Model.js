@@ -174,6 +174,7 @@ function visibleMetrics(settings, snapshot) {
   var diskMount = (settings && settings.diskMount) || "/"
   var unit = (settings && settings.tempUnit) || "C"
   var compact = isOn(settings && settings.compact, false)
+  var useText = String((settings && settings.barStyle) || "Icons") === "Text"
   var cpu = snapshot && snapshot.cpu ? snapshot.cpu : {}
   var memory = snapshot && snapshot.memory ? snapshot.memory : {}
   var gpu = primaryGpu(snapshot)
@@ -181,12 +182,23 @@ function visibleMetrics(settings, snapshot) {
   var hottest = snapshot && snapshot.hottest ? snapshot.hottest : null
   var items = []
 
+  function markFor(kind, glyph) {
+    if (!useText) return glyph
+    if (kind === "cpu") return "CPU"
+    if (kind === "memory") return "MEM"
+    if (kind === "gpu") return "GPU"
+    if (kind === "disk") return "DISK"
+    if (kind === "temp") return "TEMP"
+    return glyph
+  }
+
   function push(kind, icon, value, detail, available) {
     if (!available) return
     if (display !== "All" && display.toLowerCase() !== kind) return
     items.push({
       kind: kind,
-      icon: icon,
+      icon: markFor(kind, icon),
+      useText: useText,
       value: value,
       detail: detail || "",
       text: compact || !detail ? value : (value + " " + detail)

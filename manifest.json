@@ -33,6 +33,7 @@
       "showDisk": "Off",
       "showTemp": "On",
       "compact": "Off",
+      "barStyle": "Icons",
       "tempUnit": "C",
       "refreshIntervalSec": 2,
       "warnPercent": 90,
@@ -117,6 +118,17 @@
         ],
         "defaultValue": "Off",
         "description": "Hide temperatures next to usage so the strip stays short."
+      },
+      {
+        "key": "barStyle",
+        "type": "enum",
+        "label": "Bar labels",
+        "options": [
+          "Icons",
+          "Text"
+        ],
+        "defaultValue": "Icons",
+        "description": "Text shows CPU / MEM / GPU instead of glyphs."
       },
       {
         "key": "tempUnit",

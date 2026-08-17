@@ -164,7 +164,8 @@ BarWidget {
             text: modelData.icon
             color: button.active && button.useActiveColor ? button.activeColor : button.foreground
             font.family: button.fontFamily
-            font.pixelSize: Style.bar.iconFont
+            font.pixelSize: modelData.useText ? Style.font.caption : Style.bar.iconFont
+            font.bold: !!modelData.useText
             anchors.verticalCenter: parent.verticalCenter
           }
 

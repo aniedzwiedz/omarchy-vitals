@@ -79,6 +79,7 @@ You can still set them from the CLI or by editing the bar entry in
   "showDisk": "Off",
   "showTemp": "On",
   "compact": "Off",
+  "barStyle": "Icons",
   "tempUnit": "C",
   "refreshIntervalSec": 2,
   "warnPercent": 90,

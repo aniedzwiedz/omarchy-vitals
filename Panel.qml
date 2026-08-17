@@ -28,6 +28,7 @@ Panel {
   readonly property string tempUnit: setting("tempUnit", "C")
   readonly property string displayMode: setting("display", "All")
   readonly property string clickAction: setting("clickAction", "Panel")
+  readonly property string barStyle: setting("barStyle", "Icons")
   readonly property string diskMount: setting("diskMount", "/")
   readonly property bool compactBar: Model.isOn(setting("compact", false), false)
   readonly property bool showCpu: Model.isOn(setting("showCpu", true), true)
@@ -116,7 +117,7 @@ Panel {
   }
 
   Timer {
-    interval: 3000
+    interval: Math.max(1000, root.refreshSec * 1000)
     running: root.opened
     repeat: true
     triggeredOnStart: true
@@ -440,6 +441,8 @@ Panel {
               SettingPill { label: "°F"; active: root.tempUnit === "F"; onClicked: root.persistOne("tempUnit", "F") }
               SettingPill { label: "Panel"; active: String(root.clickAction).toLowerCase() !== "btop"; onClicked: root.persistOne("clickAction", "Panel") }
               SettingPill { label: "btop"; active: String(root.clickAction).toLowerCase() === "btop"; onClicked: root.persistOne("clickAction", "btop") }
+              SettingPill { label: "Icons"; active: root.barStyle !== "Text"; onClicked: root.persistOne("barStyle", "Icons") }
+              SettingPill { label: "Text"; active: root.barStyle === "Text"; onClicked: root.persistOne("barStyle", "Text") }
             }
 
             Row {
@@ -460,13 +463,17 @@ Panel {
             Row {
               width: parent.width
               spacing: Style.space(6)
-              SettingPill { label: "−"; onClicked: root.stepInt("refreshIntervalSec", 2, -1, 1, 30) }
+              SettingPill { label: "Poll −"; onClicked: root.stepInt("refreshIntervalSec", 2, -1, 1, 30) }
               SettingPill { label: root.refreshSec + "s"; active: true }
               SettingPill { label: "+"; onClicked: root.stepInt("refreshIntervalSec", 2, 1, 1, 30) }
-              SettingPill { label: "−"; onClicked: root.stepInt("warnPercent", 90, -5, 50, 100) }
+            }
+            Row {
+              width: parent.width
+              spacing: Style.space(6)
+              SettingPill { label: "Warn −"; onClicked: root.stepInt("warnPercent", 90, -5, 50, 100) }
               SettingPill { label: root.warnPercent + "%"; active: true }
               SettingPill { label: "+"; onClicked: root.stepInt("warnPercent", 90, 5, 50, 100) }
-              SettingPill { label: "−"; onClicked: root.stepInt("warnTempC", 85, -5, 50, 110) }
+              SettingPill { label: "Hot −"; onClicked: root.stepInt("warnTempC", 85, -5, 50, 110) }
               SettingPill { label: root.warnTempC + "°"; active: true }
               SettingPill { label: "+"; onClicked: root.stepInt("warnTempC", 85, 5, 50, 110) }
             }
