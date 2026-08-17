@@ -23,7 +23,7 @@ the manifest, and places the widget on the right side of the bar. Move it
 afterward with:
 
 ```bash
-omarchy bar move hamsti.vitals --section right --before omarchy.power
+omarchy bar move hamsti.vitals --section center --after omarchy.clock
 ```
 
 Update later with `omarchy plugin update hamsti.vitals`.
@@ -47,6 +47,10 @@ disk. Values flip to the theme urgent color at the warning thresholds.
 Those extras never run on the bar refresh path. Process lists are sampled only
 while the panel is open; directory sizes are measured in a niced background
 job and cached for 15 minutes.
+
+CPU percent is shared across every bar instance and EMA-smoothed. Two monitors
+used to sample `/proc/stat` a few milliseconds apart and invent fake spikes;
+sub-second windows are ignored now.
 
 **Clicks**
 
@@ -92,13 +96,18 @@ Then enable another copy and set that one to `Memory`.
 
 ## How it reads the machine
 
-`collect.py` is a no-dependency Python 3 snapshot:
+`collect.py` is a no-dependency Python 3 snapshot. The bar calls it every couple
+of seconds; the panel calls `collect.py --extras` only while it is open.
 
-- `/proc/stat` for CPU percent (previous sample kept in `$XDG_RUNTIME_DIR`)
+- `/proc/stat` for CPU percent (previous sample kept in `$XDG_RUNTIME_DIR`,
+  minimum 0.8s window, light EMA)
 - `/proc/meminfo` for memory and swap
 - `nvidia-smi` for NVIDIA GPUs, `/sys/class/drm` for AMD
 - `/proc/self/mounts` + `statvfs` for real disks
 - `/sys/class/hwmon` for temperatures
+- `--extras`: `/proc/*/stat` + `/proc/*/statm` for top processes,
+  `nvidia-smi --query-compute-apps` for GPU VRAM, cached `du -s -x` for
+  top-level directories
 
 The first CPU sample after login has no previous counter, so usage shows `—`
 for one refresh interval.
@@ -108,6 +117,7 @@ for one refresh interval.
 ```bash
 omarchy plugin validate .
 python3 collect.py --pretty
+python3 collect.py --extras --pretty
 ```
 
 Saving files under `~/.config/omarchy/plugins/hamsti.vitals/` reloads the
