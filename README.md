@@ -63,7 +63,12 @@ sub-second windows are ignored now.
 
 ## Settings
 
-All settings live inline on the bar entry in `~/.config/omarchy/shell.json`.
+Open the panel and use **On the bar**, **Widget**, **Disk pill**, and
+**Thresholds** at the bottom. Clicks write the same keys as `omarchy bar set`
+and take effect immediately.
+
+You can still set them from the CLI or by editing the bar entry in
+`~/.config/omarchy/shell.json`.
 
 ```json
 {

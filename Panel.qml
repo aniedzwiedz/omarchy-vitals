@@ -21,9 +21,19 @@ Panel {
   readonly property color urgent: bar ? bar.urgent : Color.urgent
   readonly property color dim: Qt.darker(foreground, 1.4)
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
+  readonly property int refreshSec: Math.max(1, parseInt(setting("refreshIntervalSec", 2), 10) || 2)
   readonly property int warnPercent: Math.max(1, parseInt(setting("warnPercent", 90), 10) || 90)
   readonly property int warnTempC: Math.max(1, parseInt(setting("warnTempC", 85), 10) || 85)
   readonly property string tempUnit: setting("tempUnit", "C")
+  readonly property string displayMode: setting("display", "All")
+  readonly property string clickAction: setting("clickAction", "Panel")
+  readonly property string diskMount: setting("diskMount", "/")
+  readonly property bool compactBar: Model.isOn(setting("compact", false), false)
+  readonly property bool showCpu: Model.isOn(setting("showCpu", true), true)
+  readonly property bool showMemory: Model.isOn(setting("showMemory", true), true)
+  readonly property bool showGpu: Model.isOn(setting("showGpu", true), true)
+  readonly property bool showDisk: Model.isOn(setting("showDisk", false), false)
+  readonly property bool showTemp: Model.isOn(setting("showTemp", true), true)
   readonly property var cpu: snapshot && snapshot.cpu ? snapshot.cpu : {}
   readonly property var memory: snapshot && snapshot.memory ? snapshot.memory : {}
   readonly property var gpu: Model.primaryGpu(snapshot)
@@ -55,6 +65,34 @@ Panel {
   function refreshExtras() {
     if (extrasProc.running) return
     extrasProc.running = true
+  }
+
+  function persist(patch) {
+    var entry = { id: root.moduleName }
+    var src = root.settings || {}
+    var key
+    for (key in src) if (key !== "id") entry[key] = src[key]
+    for (key in patch) entry[key] = patch[key]
+    root.settings = entry
+    if (root.hostWidget) root.hostWidget.settings = entry
+    if (root.bar && root.bar.shell && typeof root.bar.shell.updateEntryInline === "function")
+      root.bar.shell.updateEntryInline(root.moduleName, entry)
+  }
+
+  function persistOne(key, value) {
+    var patch = {}
+    patch[key] = value
+    persist(patch)
+  }
+
+  function toggleFlag(key, current) {
+    persistOne(key, current ? "Off" : "On")
+  }
+
+  function stepInt(key, fallback, delta, min, max) {
+    var current = parseInt(setting(key, fallback), 10)
+    if (!isFinite(current)) current = fallback
+    persistOne(key, Math.max(min, Math.min(max, current + delta)))
   }
 
   function openMonitor() {
@@ -92,7 +130,7 @@ Panel {
     bar: root.bar
     open: root.opened
     focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(Style.space(420))
+    contentWidth: panel.fittedContentWidth(Style.space(440))
     contentHeight: panel.fittedContentHeight(column.implicitHeight)
 
     PanelKeyCatcher {
@@ -190,6 +228,115 @@ Panel {
               horizontalAlignment: Text.AlignRight
               anchors.right: parent.right
             }
+          }
+        }
+
+        PanelSeparator { foreground: root.foreground }
+
+        Column {
+          width: parent.width
+          spacing: Style.space(10)
+
+          PanelSectionHeader {
+            text: "ON THE BAR"
+            foreground: root.foreground
+            fontFamily: root.fontFamily
+          }
+
+          Flow {
+            width: parent.width
+            spacing: Style.space(6)
+
+            SettingPill {
+              label: "CPU"
+              active: root.showCpu
+              enabled: root.displayMode === "All"
+              onClicked: root.toggleFlag("showCpu", root.showCpu)
+            }
+            SettingPill {
+              label: "RAM"
+              active: root.showMemory
+              enabled: root.displayMode === "All"
+              onClicked: root.toggleFlag("showMemory", root.showMemory)
+            }
+            SettingPill {
+              label: "GPU"
+              active: root.showGpu
+              enabled: root.displayMode === "All"
+              onClicked: root.toggleFlag("showGpu", root.showGpu)
+            }
+            SettingPill {
+              label: "Disk"
+              active: root.showDisk
+              enabled: root.displayMode === "All"
+              onClicked: root.toggleFlag("showDisk", root.showDisk)
+            }
+            SettingPill {
+              label: "Temp"
+              active: root.showTemp
+              enabled: root.displayMode === "All"
+              onClicked: root.toggleFlag("showTemp", root.showTemp)
+            }
+          }
+
+          PanelSectionHeader {
+            text: "WIDGET"
+            foreground: root.foreground
+            fontFamily: root.fontFamily
+          }
+
+          Flow {
+            width: parent.width
+            spacing: Style.space(6)
+
+            Repeater {
+              model: ["All", "CPU", "Memory", "GPU", "Disk", "Temp"]
+              SettingPill {
+                required property string modelData
+                label: modelData
+                active: root.displayMode === modelData
+                onClicked: root.persistOne("display", modelData)
+              }
+            }
+          }
+
+          Row {
+            width: parent.width
+            spacing: Style.space(6)
+            SettingPill { label: "Compact"; active: root.compactBar; onClicked: root.toggleFlag("compact", root.compactBar) }
+            SettingPill { label: "°C"; active: root.tempUnit !== "F"; onClicked: root.persistOne("tempUnit", "C") }
+            SettingPill { label: "°F"; active: root.tempUnit === "F"; onClicked: root.persistOne("tempUnit", "F") }
+            SettingPill { label: "Panel"; active: String(root.clickAction).toLowerCase() !== "btop"; onClicked: root.persistOne("clickAction", "Panel") }
+            SettingPill { label: "btop"; active: String(root.clickAction).toLowerCase() === "btop"; onClicked: root.persistOne("clickAction", "btop") }
+          }
+
+          Row {
+            visible: root.disks.length > 0
+            width: parent.width
+            spacing: Style.space(6)
+            Repeater {
+              model: root.disks
+              SettingPill {
+                required property var modelData
+                label: modelData.mount
+                active: root.diskMount === modelData.mount
+                onClicked: root.persistOne("diskMount", modelData.mount)
+              }
+            }
+          }
+
+          Row {
+            width: parent.width
+            spacing: Style.space(6)
+            SettingPill { label: "−"; onClicked: root.stepInt("refreshIntervalSec", 2, -1, 1, 30) }
+            SettingPill { label: root.refreshSec + "s"; active: true }
+            SettingPill { label: "+"; onClicked: root.stepInt("refreshIntervalSec", 2, 1, 1, 30) }
+            SettingPill { label: "−"; onClicked: root.stepInt("warnPercent", 90, -5, 50, 100) }
+            SettingPill { label: root.warnPercent + "%"; active: true }
+            SettingPill { label: "+"; onClicked: root.stepInt("warnPercent", 90, 5, 50, 100) }
+            SettingPill { label: "−"; onClicked: root.stepInt("warnTempC", 85, -5, 50, 110) }
+            SettingPill { label: root.warnTempC + "°"; active: true }
+            SettingPill { label: "+"; onClicked: root.stepInt("warnTempC", 85, 5, 50, 110) }
           }
         }
 
@@ -420,4 +567,18 @@ Panel {
       }
     }
   }
+
+  component SettingPill: Button {
+    property string label: ""
+
+    text: label
+    fontSize: Style.font.bodySmall
+    foreground: root.foreground
+    fontFamily: root.fontFamily
+    horizontalPadding: Style.spacing.controlPaddingX
+    verticalPadding: Style.spacing.controlPaddingY + Style.space(2)
+    bordered: true
+    opacity: enabled ? 1 : 0.4
+  }
+
 }
