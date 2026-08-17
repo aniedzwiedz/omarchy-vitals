@@ -160,8 +160,12 @@ def load_cpu_state(path: Path) -> dict | None:
     return data
 
 
-def save_cpu_state(path: Path, idle: int, total: int) -> None:
-    payload = {"idle": idle, "total": total, "ts": time.time()}
+CPU_MIN_DELTA_SEC = 0.8
+CPU_EMA_ALPHA = 0.35
+
+
+def save_cpu_state(path: Path, idle: int, total: int, percent: float | None) -> None:
+    payload = {"idle": idle, "total": total, "ts": time.time(), "percent": percent}
     tmp = path.with_suffix(".tmp")
     try:
         tmp.write_text(json.dumps(payload), encoding="utf-8")
@@ -184,13 +188,29 @@ def collect_cpu() -> dict:
     state_path = runtime_dir() / "hamsti-vitals-cpu.json"
     if sample:
         idle, total = sample
-        prev = load_cpu_state(state_path)
-        if prev:
-            d_total = total - int(prev.get("total") or 0)
-            d_idle = idle - int(prev.get("idle") or 0)
-            if d_total > 0:
-                percent = max(0.0, min(100.0, (1.0 - (d_idle / d_total)) * 100.0))
-        save_cpu_state(state_path, idle, total)
+        prev = load_cpu_state(state_path) or {}
+        prev_percent = parse_num(prev.get("percent"))
+        prev_total = int(prev.get("total") or 0)
+        prev_idle = int(prev.get("idle") or 0)
+        prev_ts = float(prev.get("ts") or 0)
+        dt = time.time() - prev_ts if prev_ts else 0.0
+        d_total = total - prev_total
+        d_idle = idle - prev_idle
+
+        # Two bar instances (one per monitor) can sample a few milliseconds
+        # apart and turn a 40ms blip into a fake 80% spike. Reuse the last
+        # good reading until a real window has elapsed.
+        if prev_ts and dt < CPU_MIN_DELTA_SEC:
+            percent = prev_percent
+        elif d_total > 0 and prev_total > 0:
+            instant = max(0.0, min(100.0, (1.0 - (d_idle / d_total)) * 100.0))
+            if prev_percent is None:
+                percent = instant
+            else:
+                percent = CPU_EMA_ALPHA * instant + (1.0 - CPU_EMA_ALPHA) * prev_percent
+            save_cpu_state(state_path, idle, total, percent)
+        else:
+            save_cpu_state(state_path, idle, total, prev_percent)
 
     return {
         "percent": None if percent is None else round(percent, 1),
