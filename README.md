@@ -1,5 +1,8 @@
 # Vitals
 
+[![CI](https://github.com/thehamsti/omarchy-vitals/actions/workflows/ci.yml/badge.svg)](https://github.com/thehamsti/omarchy-vitals/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/thehamsti/omarchy-vitals)](https://github.com/thehamsti/omarchy-vitals/releases)
+
 An [Omarchy](https://omarchy.org/) bar widget for live machine stats:
 
 - CPU usage, load, and package temperature
@@ -64,7 +67,8 @@ sub-second windows are ignored now.
 ## Settings
 
 Open the panel and expand **Settings** at the bottom. Clicks write the same
-keys as `omarchy bar set` and take effect immediately.
+keys as `omarchy bar set` and take effect immediately. **Poll** is the bar
+refresh interval. **Text** swaps the glyphs for `CPU` / `MEM` / `GPU`.
 
 You can still set them from the CLI or by editing the bar entry in
 `~/.config/omarchy/shell.json`.
@@ -120,10 +124,16 @@ for one refresh interval.
 ## Develop
 
 ```bash
-omarchy plugin validate .
+./scripts/check.sh
 python3 collect.py --pretty
 python3 collect.py --extras --pretty
 ```
 
 Saving files under `~/.config/omarchy/plugins/hamsti.vitals/` reloads the
 widget automatically. Force a rescan with `omarchy-shell shell rescanPlugins`.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for PR and release steps.
+
+```bash
+./scripts/release.sh patch
+```

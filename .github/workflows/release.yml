@@ -1,0 +1,42 @@
+name: Release
+
+# Tags are created by ./scripts/release.sh, which also opens the GitHub
+# Release. This workflow is a backstop: if someone pushes vX.Y.Z by hand
+# and no release exists yet, publish one from the changelog.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  github-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create release if missing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#v}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "release $tag already exists"
+            exit 0
+          fi
+          notes="$(python3 - "$version" <<'PY'
+          import pathlib, re, sys
+          version = sys.argv[1]
+          text = pathlib.Path("CHANGELOG.md").read_text()
+          match = re.search(
+              rf"^## \[{re.escape(version)}\][^\n]*\n(.*?)(?=^## |\Z)",
+              text,
+              re.M | re.S,
+          )
+          body = match.group(1).strip() if match else ""
+          print(f"## Vitals {version}\n")
+          print(body or "See the commit history for details.")
+          PY
+          )"
+          gh release create "$tag" --title "Vitals ${version}" --notes "$notes"
