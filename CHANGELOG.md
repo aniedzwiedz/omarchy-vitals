@@ -8,6 +8,9 @@ more than once on the same day.
 
 ## [Unreleased]
 
+
+## [2026.08.17.1] - 2026-08-17
+
 ### Changed
 
 - Bar hover no longer shows the raw stats tooltip; click opens the panel
@@ -36,5 +39,6 @@ more than once on the same day.
 
 - Fake CPU spikes from two monitors sampling `/proc/stat` a few milliseconds apart
 
-[Unreleased]: https://github.com/thehamsti/omarchy-vitals/compare/v2026.08.17...HEAD
+[Unreleased]: https://github.com/thehamsti/omarchy-vitals/compare/v2026.08.17.1...HEAD
+[2026.08.17.1]: https://github.com/thehamsti/omarchy-vitals/releases/tag/v2026.08.17.1
 [2026.08.17]: https://github.com/thehamsti/omarchy-vitals/releases/tag/v2026.08.17
