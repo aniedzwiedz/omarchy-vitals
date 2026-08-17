@@ -10,7 +10,6 @@ BarWidget {
   moduleName: "hamsti.vitals"
 
   property var snapshot: Model.emptySnapshot()
-  property var extras: Model.emptyExtras()
 
   readonly property int refreshSec: Math.max(1, parseInt(setting("refreshIntervalSec", 2), 10) || 2)
   readonly property int warnPercent: Math.max(1, parseInt(setting("warnPercent", 90), 10) || 90)
@@ -30,7 +29,6 @@ BarWidget {
     if ("anchorItem" in target) target.anchorItem = button
     if ("hostWidget" in target) target.hostWidget = root
     if ("snapshot" in target) target.snapshot = root.snapshot
-    if ("extras" in target) target.extras = root.extras
   }
 
   function applySnapshot(raw) {
@@ -43,19 +41,6 @@ BarWidget {
 
   function refresh() {
     if (!collectProc.running) collectProc.running = true
-  }
-
-  function applyExtras(raw) {
-    var next = Model.parseExtras(raw)
-    if (!next) return
-    root.extras = next
-    if (panelLoader.item && "extras" in panelLoader.item)
-      panelLoader.item.extras = next
-  }
-
-  function refreshExtras() {
-    if (!root.opened || extrasProc.running) return
-    extrasProc.running = true
   }
 
   function openMonitor() {
@@ -105,7 +90,6 @@ BarWidget {
   onBarChanged: injectPanel()
   onSettingsChanged: injectPanel()
   onSnapshotChanged: injectPanel()
-  onOpenedChanged: if (root.opened) root.refreshExtras()
 
   Process {
     id: collectProc
@@ -116,29 +100,12 @@ BarWidget {
     }
   }
 
-  Process {
-    id: extrasProc
-    command: ["python3", root.collector, "--extras"]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: root.applyExtras(text)
-    }
-  }
-
   Timer {
     interval: root.refreshSec * 1000
     running: true
     repeat: true
     triggeredOnStart: true
     onTriggered: root.refresh()
-  }
-
-  Timer {
-    interval: Math.max(3000, root.refreshSec * 1000)
-    running: root.opened
-    repeat: true
-    triggeredOnStart: true
-    onTriggered: root.refreshExtras()
   }
 
   Loader {

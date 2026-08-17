@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import qs.Commons
 import qs.Ui
 import "Model.js" as Model
@@ -31,6 +32,7 @@ Panel {
   readonly property var cpuRows: Model.processCpuRows(extras)
   readonly property var memoryRows: Model.processMemoryRows(extras)
   readonly property var gpuRows: Model.processGpuRows(extras)
+  readonly property string collector: Model.fileUrlToPath(Qt.resolvedUrl("collect.py"))
   readonly property string phrase: Model.statusPhrase(snapshot, warnPercent, warnTempC)
   readonly property string heroTemp: snapshot && snapshot.hottest
     ? Model.formatTempFull(snapshot.hottest.celsius, tempUnit)
@@ -45,9 +47,38 @@ Panel {
     return false
   }
 
+  function applyExtras(raw) {
+    var next = Model.parseExtras(raw)
+    if (next) root.extras = next
+  }
+
+  function refreshExtras() {
+    if (extrasProc.running) return
+    extrasProc.running = true
+  }
+
   function openMonitor() {
     if (root.bar) root.bar.run("omarchy-launch-or-focus-tui btop")
     root.close()
+  }
+
+  onOpenedChanged: if (root.opened) root.refreshExtras()
+
+  Process {
+    id: extrasProc
+    command: ["python3", root.collector, "--extras"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.applyExtras(text)
+    }
+  }
+
+  Timer {
+    interval: 3000
+    running: root.opened
+    repeat: true
+    triggeredOnStart: true
+    onTriggered: root.refreshExtras()
   }
 
   function meterColor(warned) {
