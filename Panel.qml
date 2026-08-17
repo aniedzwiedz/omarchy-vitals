@@ -382,100 +382,172 @@ Panel {
           Column {
             visible: root.settingsOpen
             width: parent.width
-            spacing: Style.space(10)
+            spacing: Style.space(12)
 
-            Flow {
-              width: parent.width
-              spacing: Style.space(6)
+            SettingGroup {
+              title: "Show on bar"
+              hint: "Which pills appear when mode is All"
               SettingPill {
                 label: "CPU"
                 active: root.showCpu
                 enabled: root.displayMode === "All"
+                tooltipText: "Show CPU usage on the bar"
                 onClicked: root.toggleFlag("showCpu", root.showCpu)
               }
               SettingPill {
                 label: "RAM"
                 active: root.showMemory
                 enabled: root.displayMode === "All"
+                tooltipText: "Show memory usage on the bar"
                 onClicked: root.toggleFlag("showMemory", root.showMemory)
               }
               SettingPill {
                 label: "GPU"
                 active: root.showGpu
                 enabled: root.displayMode === "All"
+                tooltipText: "Show GPU usage on the bar"
                 onClicked: root.toggleFlag("showGpu", root.showGpu)
               }
               SettingPill {
                 label: "Disk"
                 active: root.showDisk
                 enabled: root.displayMode === "All"
+                tooltipText: "Show disk usage on the bar"
                 onClicked: root.toggleFlag("showDisk", root.showDisk)
               }
               SettingPill {
                 label: "Temp"
                 active: root.showTemp
                 enabled: root.displayMode === "All"
+                tooltipText: "Append temperatures next to CPU and GPU"
                 onClicked: root.toggleFlag("showTemp", root.showTemp)
               }
             }
 
-            Flow {
-              width: parent.width
-              spacing: Style.space(6)
+            SettingGroup {
+              title: "Mode"
+              hint: "All, or a single metric widget"
               Repeater {
                 model: ["All", "CPU", "Memory", "GPU", "Disk", "Temp"]
                 SettingPill {
                   required property string modelData
                   label: modelData
                   active: root.displayMode === modelData
+                  tooltipText: modelData === "All" ? "Show every enabled pill" : ("Only show " + modelData)
                   onClicked: root.persistOne("display", modelData)
                 }
               }
             }
 
-            Row {
-              width: parent.width
-              spacing: Style.space(6)
-              SettingPill { label: "Compact"; active: root.compactBar; onClicked: root.toggleFlag("compact", root.compactBar) }
-              SettingPill { label: "°C"; active: root.tempUnit !== "F"; onClicked: root.persistOne("tempUnit", "C") }
-              SettingPill { label: "°F"; active: root.tempUnit === "F"; onClicked: root.persistOne("tempUnit", "F") }
-              SettingPill { label: "Panel"; active: String(root.clickAction).toLowerCase() !== "btop"; onClicked: root.persistOne("clickAction", "Panel") }
-              SettingPill { label: "btop"; active: String(root.clickAction).toLowerCase() === "btop"; onClicked: root.persistOne("clickAction", "btop") }
-              SettingPill { label: "Icons"; active: root.barStyle !== "Text"; onClicked: root.persistOne("barStyle", "Icons") }
-              SettingPill { label: "Text"; active: root.barStyle === "Text"; onClicked: root.persistOne("barStyle", "Text") }
+            SettingGroup {
+              title: "Look"
+              hint: "Text uses CPU MEM GPU instead of glyphs"
+              SettingPill {
+                label: "Icons"
+                active: root.barStyle !== "Text"
+                tooltipText: "Nerd-font glyphs on the bar"
+                onClicked: root.persistOne("barStyle", "Icons")
+              }
+              SettingPill {
+                label: "Text"
+                active: root.barStyle === "Text"
+                tooltipText: "CPU MEM GPU labels on the bar"
+                onClicked: root.persistOne("barStyle", "Text")
+              }
+              SettingPill {
+                label: "Compact"
+                active: root.compactBar
+                tooltipText: "Hide temperatures beside usage"
+                onClicked: root.toggleFlag("compact", root.compactBar)
+              }
+              SettingPill {
+                label: "°C"
+                active: root.tempUnit !== "F"
+                tooltipText: "Celsius"
+                onClicked: root.persistOne("tempUnit", "C")
+              }
+              SettingPill {
+                label: "°F"
+                active: root.tempUnit === "F"
+                tooltipText: "Fahrenheit"
+                onClicked: root.persistOne("tempUnit", "F")
+              }
             }
 
-            Row {
+            SettingGroup {
+              title: "Click"
+              hint: "What a left click on the bar does"
+              SettingPill {
+                label: "Panel"
+                active: String(root.clickAction).toLowerCase() !== "btop"
+                tooltipText: "Open this dropdown"
+                onClicked: root.persistOne("clickAction", "Panel")
+              }
+              SettingPill {
+                label: "btop"
+                active: String(root.clickAction).toLowerCase() === "btop"
+                tooltipText: "Launch btop"
+                onClicked: root.persistOne("clickAction", "btop")
+              }
+            }
+
+            SettingGroup {
               visible: root.disks.length > 0
-              width: parent.width
-              spacing: Style.space(6)
+              title: "Disk"
+              hint: "Filesystem the Disk pill tracks"
               Repeater {
                 model: root.disks
                 SettingPill {
                   required property var modelData
                   label: modelData.mount
                   active: root.diskMount === modelData.mount
+                  tooltipText: "Track " + modelData.mount
                   onClicked: root.persistOne("diskMount", modelData.mount)
                 }
               }
             }
 
-            Row {
-              width: parent.width
-              spacing: Style.space(6)
-              SettingPill { label: "Poll −"; onClicked: root.stepInt("refreshIntervalSec", 2, -1, 1, 30) }
-              SettingPill { label: root.refreshSec + "s"; active: true }
-              SettingPill { label: "+"; onClicked: root.stepInt("refreshIntervalSec", 2, 1, 1, 30) }
+            SettingGroup {
+              title: "Poll"
+              hint: "How often the bar refreshes"
+              SettingPill {
+                label: "−"
+                tooltipText: "Faster refresh"
+                onClicked: root.stepInt("refreshIntervalSec", 2, -1, 1, 30)
+              }
+              SettingPill { label: root.refreshSec + "s"; active: true; tooltipText: "Current poll interval" }
+              SettingPill {
+                label: "+"
+                tooltipText: "Slower refresh"
+                onClicked: root.stepInt("refreshIntervalSec", 2, 1, 1, 30)
+              }
             }
-            Row {
-              width: parent.width
-              spacing: Style.space(6)
-              SettingPill { label: "Warn −"; onClicked: root.stepInt("warnPercent", 90, -5, 50, 100) }
-              SettingPill { label: root.warnPercent + "%"; active: true }
-              SettingPill { label: "+"; onClicked: root.stepInt("warnPercent", 90, 5, 50, 100) }
-              SettingPill { label: "Hot −"; onClicked: root.stepInt("warnTempC", 85, -5, 50, 110) }
-              SettingPill { label: root.warnTempC + "°"; active: true }
-              SettingPill { label: "+"; onClicked: root.stepInt("warnTempC", 85, 5, 50, 110) }
+
+            SettingGroup {
+              title: "Alerts"
+              hint: "When the bar flips to the urgent color"
+              SettingPill {
+                label: "−"
+                tooltipText: "Lower usage warning"
+                onClicked: root.stepInt("warnPercent", 90, -5, 50, 100)
+              }
+              SettingPill { label: root.warnPercent + "%"; active: true; tooltipText: "Warn at this usage" }
+              SettingPill {
+                label: "+"
+                tooltipText: "Raise usage warning"
+                onClicked: root.stepInt("warnPercent", 90, 5, 50, 100)
+              }
+              SettingPill {
+                label: "−"
+                tooltipText: "Lower temperature warning"
+                onClicked: root.stepInt("warnTempC", 85, -5, 50, 110)
+              }
+              SettingPill { label: root.warnTempC + "°"; active: true; tooltipText: "Warn at this temperature" }
+              SettingPill {
+                label: "+"
+                tooltipText: "Raise temperature warning"
+                onClicked: root.stepInt("warnTempC", 85, 5, 50, 110)
+              }
             }
           }
         }
@@ -600,6 +672,40 @@ Panel {
           }
         }
       }
+    }
+  }
+
+  component SettingGroup: Column {
+    property string title: ""
+    property string hint: ""
+    default property alias content: pills.data
+
+    width: parent ? parent.width : implicitWidth
+    spacing: Style.space(4)
+
+    Text {
+      visible: title !== ""
+      text: title
+      color: root.foreground
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.bodySmall
+      font.bold: true
+    }
+
+    Text {
+      visible: hint !== ""
+      width: parent.width
+      text: hint
+      color: root.dim
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.caption
+      wrapMode: Text.WordWrap
+    }
+
+    Flow {
+      id: pills
+      width: parent.width
+      spacing: Style.space(6)
     }
   }
 
