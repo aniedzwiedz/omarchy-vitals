@@ -2,8 +2,9 @@
 
 [![CI](https://github.com/thehamsti/omarchy-vitals/actions/workflows/ci.yml/badge.svg)](https://github.com/thehamsti/omarchy-vitals/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/thehamsti/omarchy-vitals)](https://github.com/thehamsti/omarchy-vitals/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-An [Omarchy](https://omarchy.org/) bar widget for live machine stats:
+A lightweight [Omarchy](https://omarchy.org/) / [Hyprland](https://hypr.land/) status-bar plugin for CPU, GPU, memory, disk, and temperatures. Native Quickshell widget — not a Waybar script.
 
 - CPU usage, load, and package temperature
 - Memory and swap
@@ -137,3 +138,11 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for PR and release steps.
 ```bash
 ./scripts/release.sh              # tags v2026.08.17
 ```
+
+## License
+
+[MIT](LICENSE)
+
+- [Changelog](CHANGELOG.md)
+- [Releases](https://github.com/thehamsti/omarchy-vitals/releases)
+- [Issues](https://github.com/thehamsti/omarchy-vitals/issues)
