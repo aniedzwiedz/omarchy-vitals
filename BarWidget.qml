@@ -137,7 +137,7 @@ BarWidget {
     text: root.vertical ? "" : ""
     labelVisible: false
     hasVisualContent: root.metrics.length > 0
-    tooltipText: Model.tooltipLines(root.snapshot, root.settings)
+    tooltipText: ""
     horizontalMargin: 8.75
     verticalPadding: 8.75
     fixedWidth: root.vertical ? -1 : Math.max(12, metricsRow.implicitWidth + scaledHorizontalMargin * 2)

@@ -10,6 +10,10 @@ more than once on the same day.
 
 ### Changed
 
+- Bar hover no longer shows the raw stats tooltip; click opens the panel
+
+### Changed
+
 - Panel meters, hero, and chips follow theme accent / muted / urgent colors
 - Tasteful fade and meter animations on the dropdown
 
