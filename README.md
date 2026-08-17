@@ -6,15 +6,12 @@
 
 A lightweight [Omarchy](https://omarchy.org/) / [Hyprland](https://hypr.land/) status-bar plugin for CPU, GPU, memory, disk, and temperatures. Native Quickshell widget — not a Waybar script.
 
-- CPU usage, load, and package temperature
-- Memory and swap
-- GPU usage, VRAM, temperature, and power (NVIDIA via `nvidia-smi`, AMD via sysfs)
-- Filesystem usage
-- The rest of the interesting hwmon temperatures
+![Vitals panel](docs/panel.png)
 
-The bar shows a compact strip of the metrics you care about. Left click opens a
-native Omarchy panel with meters; right click (or Enter in the panel) launches
-`btop`.
+- CPU, memory, GPU (NVIDIA via `nvidia-smi`, AMD via sysfs), disk, and hwmon temps
+- Click the bar for meters, top processes, and largest directories
+- Follows the active Omarchy theme (accent / muted / urgent)
+- Settings live in the panel accordion — poll rate, `CPU`/`MEM` text labels, units
 
 ## Install
 
@@ -63,7 +60,7 @@ sub-second windows are ignored now.
 | Left | Open the panel (or `btop`, if you change **Left click**) |
 | Right | Open `btop` |
 | Middle | Refresh now |
-| Hover | Tooltip with the current snapshot |
+| Hover | Nothing — click for the panel |
 
 ## Settings
 
