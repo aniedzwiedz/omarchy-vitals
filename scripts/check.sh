@@ -20,12 +20,12 @@ node tests/model.test.js
 jq -e '
   .schemaVersion == 1
   and (.id | type == "string" and length > 0)
-  and (.version | test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))
+  and (.version | test("^[0-9]{4}\\.[0-9]{2}\\.[0-9]{2}(\\.[0-9]+)?$"))
   and (.kinds | type == "array" and length > 0)
   and (.entryPoints | type == "object")
   and (.entryPoints.barWidget | type == "string")
 ' manifest.json >/dev/null \
-  || fail "manifest.json is missing required fields or a semver version"
+  || fail "manifest.json is missing required fields or a CalVer version (YYYY.MM.DD)"
 
 entry=$(jq -r '.entryPoints.barWidget' manifest.json)
 [[ -f $entry ]] || fail "entryPoints.barWidget does not exist: $entry"

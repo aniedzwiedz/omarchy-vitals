@@ -135,5 +135,5 @@ widget automatically. Force a rescan with `omarchy-shell shell rescanPlugins`.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for PR and release steps.
 
 ```bash
-./scripts/release.sh patch
+./scripts/release.sh              # tags v2026.08.17
 ```

@@ -19,14 +19,16 @@ Add a bullet under `## [Unreleased]` in `CHANGELOG.md`. Do not bump
 
 ## Releasing
 
-Maintainers, from a clean `main` that matches `origin/main`:
+Versions are [CalVer](https://calver.org/): `YYYY.MM.DD`. A second ship on
+the same day becomes `YYYY.MM.DD.1`.
+
+From a clean `main` that matches `origin/main`:
 
 ```bash
-./scripts/release.sh patch    # 1.2.0 -> 1.2.1
-./scripts/release.sh minor    # 1.2.0 -> 1.3.0
-./scripts/release.sh 1.3.0    # explicit
+./scripts/release.sh              # today, e.g. 2026.08.17
+./scripts/release.sh 2026.08.17   # explicit
 ```
 
-The script runs checks, cuts the changelog, commits, tags `vX.Y.Z`, pushes,
-and creates the GitHub Release. Users pick it up with
+The script runs checks, cuts the changelog, commits, tags `vYYYY.MM.DD`,
+pushes, and creates the GitHub Release. Users pick it up with
 `omarchy plugin update hamsti.vitals`.

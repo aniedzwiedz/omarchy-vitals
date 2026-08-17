@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Cut a tagged GitHub release for omarchy-vitals.
+# Cut a tagged GitHub release. Versions are CalVer: YYYY.MM.DD
+# (YYYY.MM.DD.N if we ship more than once that day).
 #
-#   ./scripts/release.sh 1.3.0
-#   ./scripts/release.sh patch|minor|major
+#   ./scripts/release.sh              # today
+#   ./scripts/release.sh 2026.08.17   # explicit
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -12,8 +13,6 @@ fail() {
   echo "release: $*" >&2
   exit 1
 }
-
-[[ $# -eq 1 ]] || fail "usage: $0 <X.Y.Z|patch|minor|major>"
 
 command -v git >/dev/null || fail "git is required"
 command -v jq >/dev/null || fail "jq is required"
@@ -26,30 +25,30 @@ git fetch origin
 [[ $(git rev-parse HEAD) == $(git rev-parse origin/main) ]] \
   || fail "main is not in sync with origin/main"
 
-current=$(jq -r .version manifest.json)
-[[ $current =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]] \
-  || fail "manifest version is not semver: $current"
-major=${BASH_REMATCH[1]}
-minor=${BASH_REMATCH[2]}
-patch=${BASH_REMATCH[3]}
+calver_re='^[0-9]{4}\.[0-9]{2}\.[0-9]{2}(\.[0-9]+)?$'
+today=$(date +%Y.%m.%d)
 
-case "$1" in
-  patch) version="$major.$minor.$((patch + 1))" ;;
-  minor) version="$major.$((minor + 1)).0" ;;
-  major) version="$((major + 1)).0.0" ;;
-  *)
-    [[ $1 =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "version must be X.Y.Z"
-    version=$1
-    ;;
-esac
+if [[ $# -eq 0 ]]; then
+  version=$today
+  n=1
+  while git rev-parse "v$version" >/dev/null 2>&1; do
+    version="${today}.${n}"
+    n=$((n + 1))
+  done
+elif [[ $# -eq 1 ]]; then
+  [[ $1 =~ $calver_re ]] || fail "version must be YYYY.MM.DD or YYYY.MM.DD.N"
+  version=$1
+else
+  fail "usage: $0 [YYYY.MM.DD]"
+fi
 
 tag="v$version"
 git rev-parse "$tag" >/dev/null 2>&1 && fail "tag $tag already exists"
 
 "$root/scripts/check.sh"
 
-today=$(date +%F)
-python3 - "$version" "$today" <<'PY'
+iso_date=$(date +%F)
+python3 - "$version" "$iso_date" <<'PY'
 import pathlib, re, sys
 
 version, today = sys.argv[1], sys.argv[2]
@@ -109,7 +108,6 @@ match = re.search(
 if not match:
     sys.exit(f"no changelog section for {version}")
 body = match.group(1).strip()
-# Drop compare-link leftovers if a section was empty
 body = re.sub(r"^\[.*\]: .*\n?", "", body, flags=re.M).strip()
 print(f"## Vitals {version}\n")
 print(body or "See the commit history for details.")
