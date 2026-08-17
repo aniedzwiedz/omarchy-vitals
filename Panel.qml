@@ -13,6 +13,7 @@ Panel {
 
   property var snapshot: Model.emptySnapshot()
   property var extras: Model.emptyExtras()
+  property bool settingsOpen: false
   property var anchorItem: null
   property var hostWidget: null
   readonly property var barIdentity: hostWidget || root
@@ -100,7 +101,10 @@ Panel {
     root.close()
   }
 
-  onOpenedChanged: if (root.opened) root.refreshExtras()
+  onOpenedChanged: {
+    if (root.opened) root.refreshExtras()
+    else root.settingsOpen = false
+  }
 
   Process {
     id: extrasProc
@@ -231,115 +235,6 @@ Panel {
           }
         }
 
-        PanelSeparator { foreground: root.foreground }
-
-        Column {
-          width: parent.width
-          spacing: Style.space(10)
-
-          PanelSectionHeader {
-            text: "ON THE BAR"
-            foreground: root.foreground
-            fontFamily: root.fontFamily
-          }
-
-          Flow {
-            width: parent.width
-            spacing: Style.space(6)
-
-            SettingPill {
-              label: "CPU"
-              active: root.showCpu
-              enabled: root.displayMode === "All"
-              onClicked: root.toggleFlag("showCpu", root.showCpu)
-            }
-            SettingPill {
-              label: "RAM"
-              active: root.showMemory
-              enabled: root.displayMode === "All"
-              onClicked: root.toggleFlag("showMemory", root.showMemory)
-            }
-            SettingPill {
-              label: "GPU"
-              active: root.showGpu
-              enabled: root.displayMode === "All"
-              onClicked: root.toggleFlag("showGpu", root.showGpu)
-            }
-            SettingPill {
-              label: "Disk"
-              active: root.showDisk
-              enabled: root.displayMode === "All"
-              onClicked: root.toggleFlag("showDisk", root.showDisk)
-            }
-            SettingPill {
-              label: "Temp"
-              active: root.showTemp
-              enabled: root.displayMode === "All"
-              onClicked: root.toggleFlag("showTemp", root.showTemp)
-            }
-          }
-
-          PanelSectionHeader {
-            text: "WIDGET"
-            foreground: root.foreground
-            fontFamily: root.fontFamily
-          }
-
-          Flow {
-            width: parent.width
-            spacing: Style.space(6)
-
-            Repeater {
-              model: ["All", "CPU", "Memory", "GPU", "Disk", "Temp"]
-              SettingPill {
-                required property string modelData
-                label: modelData
-                active: root.displayMode === modelData
-                onClicked: root.persistOne("display", modelData)
-              }
-            }
-          }
-
-          Row {
-            width: parent.width
-            spacing: Style.space(6)
-            SettingPill { label: "Compact"; active: root.compactBar; onClicked: root.toggleFlag("compact", root.compactBar) }
-            SettingPill { label: "°C"; active: root.tempUnit !== "F"; onClicked: root.persistOne("tempUnit", "C") }
-            SettingPill { label: "°F"; active: root.tempUnit === "F"; onClicked: root.persistOne("tempUnit", "F") }
-            SettingPill { label: "Panel"; active: String(root.clickAction).toLowerCase() !== "btop"; onClicked: root.persistOne("clickAction", "Panel") }
-            SettingPill { label: "btop"; active: String(root.clickAction).toLowerCase() === "btop"; onClicked: root.persistOne("clickAction", "btop") }
-          }
-
-          Row {
-            visible: root.disks.length > 0
-            width: parent.width
-            spacing: Style.space(6)
-            Repeater {
-              model: root.disks
-              SettingPill {
-                required property var modelData
-                label: modelData.mount
-                active: root.diskMount === modelData.mount
-                onClicked: root.persistOne("diskMount", modelData.mount)
-              }
-            }
-          }
-
-          Row {
-            width: parent.width
-            spacing: Style.space(6)
-            SettingPill { label: "−"; onClicked: root.stepInt("refreshIntervalSec", 2, -1, 1, 30) }
-            SettingPill { label: root.refreshSec + "s"; active: true }
-            SettingPill { label: "+"; onClicked: root.stepInt("refreshIntervalSec", 2, 1, 1, 30) }
-            SettingPill { label: "−"; onClicked: root.stepInt("warnPercent", 90, -5, 50, 100) }
-            SettingPill { label: root.warnPercent + "%"; active: true }
-            SettingPill { label: "+"; onClicked: root.stepInt("warnPercent", 90, 5, 50, 100) }
-            SettingPill { label: "−"; onClicked: root.stepInt("warnTempC", 85, -5, 50, 110) }
-            SettingPill { label: root.warnTempC + "°"; active: true }
-            SettingPill { label: "+"; onClicked: root.stepInt("warnTempC", 85, 5, 50, 110) }
-          }
-        }
-
         MetricBlock {
           icon: "󰍛"
           title: "CPU"
@@ -441,6 +336,139 @@ Panel {
                   font.pixelSize: Style.font.bodySmall
                 }
               }
+            }
+          }
+        }
+
+        PanelSeparator { foreground: root.foreground }
+
+        Column {
+          width: parent.width
+          spacing: root.settingsOpen ? Style.space(10) : 0
+
+          Item {
+            width: parent.width
+            implicitHeight: settingsLabel.implicitHeight + Style.space(8)
+
+            Text {
+              id: settingsLabel
+              text: "SETTINGS"
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              font.bold: true
+              font.letterSpacing: 1.2
+              anchors.left: parent.left
+              anchors.verticalCenter: parent.verticalCenter
+            }
+
+            Text {
+              text: root.settingsOpen ? "▾" : "▸"
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.body
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+            }
+
+            MouseArea {
+              anchors.fill: parent
+              cursorShape: Qt.PointingHandCursor
+              onClicked: root.settingsOpen = !root.settingsOpen
+            }
+          }
+
+          Column {
+            visible: root.settingsOpen
+            width: parent.width
+            spacing: Style.space(10)
+
+            Flow {
+              width: parent.width
+              spacing: Style.space(6)
+              SettingPill {
+                label: "CPU"
+                active: root.showCpu
+                enabled: root.displayMode === "All"
+                onClicked: root.toggleFlag("showCpu", root.showCpu)
+              }
+              SettingPill {
+                label: "RAM"
+                active: root.showMemory
+                enabled: root.displayMode === "All"
+                onClicked: root.toggleFlag("showMemory", root.showMemory)
+              }
+              SettingPill {
+                label: "GPU"
+                active: root.showGpu
+                enabled: root.displayMode === "All"
+                onClicked: root.toggleFlag("showGpu", root.showGpu)
+              }
+              SettingPill {
+                label: "Disk"
+                active: root.showDisk
+                enabled: root.displayMode === "All"
+                onClicked: root.toggleFlag("showDisk", root.showDisk)
+              }
+              SettingPill {
+                label: "Temp"
+                active: root.showTemp
+                enabled: root.displayMode === "All"
+                onClicked: root.toggleFlag("showTemp", root.showTemp)
+              }
+            }
+
+            Flow {
+              width: parent.width
+              spacing: Style.space(6)
+              Repeater {
+                model: ["All", "CPU", "Memory", "GPU", "Disk", "Temp"]
+                SettingPill {
+                  required property string modelData
+                  label: modelData
+                  active: root.displayMode === modelData
+                  onClicked: root.persistOne("display", modelData)
+                }
+              }
+            }
+
+            Row {
+              width: parent.width
+              spacing: Style.space(6)
+              SettingPill { label: "Compact"; active: root.compactBar; onClicked: root.toggleFlag("compact", root.compactBar) }
+              SettingPill { label: "°C"; active: root.tempUnit !== "F"; onClicked: root.persistOne("tempUnit", "C") }
+              SettingPill { label: "°F"; active: root.tempUnit === "F"; onClicked: root.persistOne("tempUnit", "F") }
+              SettingPill { label: "Panel"; active: String(root.clickAction).toLowerCase() !== "btop"; onClicked: root.persistOne("clickAction", "Panel") }
+              SettingPill { label: "btop"; active: String(root.clickAction).toLowerCase() === "btop"; onClicked: root.persistOne("clickAction", "btop") }
+            }
+
+            Row {
+              visible: root.disks.length > 0
+              width: parent.width
+              spacing: Style.space(6)
+              Repeater {
+                model: root.disks
+                SettingPill {
+                  required property var modelData
+                  label: modelData.mount
+                  active: root.diskMount === modelData.mount
+                  onClicked: root.persistOne("diskMount", modelData.mount)
+                }
+              }
+            }
+
+            Row {
+              width: parent.width
+              spacing: Style.space(6)
+              SettingPill { label: "−"; onClicked: root.stepInt("refreshIntervalSec", 2, -1, 1, 30) }
+              SettingPill { label: root.refreshSec + "s"; active: true }
+              SettingPill { label: "+"; onClicked: root.stepInt("refreshIntervalSec", 2, 1, 1, 30) }
+              SettingPill { label: "−"; onClicked: root.stepInt("warnPercent", 90, -5, 50, 100) }
+              SettingPill { label: root.warnPercent + "%"; active: true }
+              SettingPill { label: "+"; onClicked: root.stepInt("warnPercent", 90, 5, 50, 100) }
+              SettingPill { label: "−"; onClicked: root.stepInt("warnTempC", 85, -5, 50, 110) }
+              SettingPill { label: root.warnTempC + "°"; active: true }
+              SettingPill { label: "+"; onClicked: root.stepInt("warnTempC", 85, 5, 50, 110) }
             }
           }
         }
