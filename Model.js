@@ -36,6 +36,14 @@ function emptySnapshot() {
   }
 }
 
+function emptyExtras() {
+  return {
+    ok: false,
+    processes: { cpu: [], memory: [], gpu: [] },
+    directories: {}
+  }
+}
+
 function parseSnapshot(raw) {
   var text = String(raw || "").replace(/^\s+|\s+$/g, "")
   if (!text) return null
@@ -76,6 +84,13 @@ function diskForMount(snapshot, mount) {
 function formatPercent(value, emptyText) {
   if (value === undefined || value === null || !isFinite(Number(value))) return emptyText || "—"
   return Math.round(Number(value)) + "%"
+}
+
+function formatProcessPercent(value, emptyText) {
+  if (value === undefined || value === null || !isFinite(Number(value))) return emptyText || "—"
+  var n = Number(value)
+  if (n < 10) return n.toFixed(1) + "%"
+  return Math.round(n) + "%"
 }
 
 function formatTemp(celsius, unit, emptyText) {
@@ -240,16 +255,73 @@ function verticalLines(items) {
   return lines
 }
 
+function parseExtras(raw) {
+  var text = String(raw || "").replace(/^\s+|\s+$/g, "")
+  if (!text) return null
+  try {
+    var data = JSON.parse(text)
+    if (!data || typeof data !== "object") return null
+    if (!data.processes) data.processes = emptyExtras().processes
+    if (!data.processes.cpu) data.processes.cpu = []
+    if (!data.processes.memory) data.processes.memory = []
+    if (!data.processes.gpu) data.processes.gpu = []
+    if (!data.directories || typeof data.directories !== "object") data.directories = {}
+    return data
+  } catch (e) {
+    return null
+  }
+}
+
+function namedRows(list, valueKey, formatter) {
+  var rows = []
+  var items = list || []
+  for (var i = 0; i < items.length; i++) {
+    var item = items[i] || {}
+    var name = String(item.name || item.label || "")
+    if (!name) continue
+    rows.push({ name: name, value: formatter(item[valueKey]) })
+  }
+  return rows
+}
+
+function processCpuRows(extras) {
+  return namedRows(extras && extras.processes ? extras.processes.cpu : [], "percent", formatProcessPercent)
+}
+
+function processMemoryRows(extras) {
+  return namedRows(extras && extras.processes ? extras.processes.memory : [], "bytes", formatBytes)
+}
+
+function processGpuRows(extras) {
+  return namedRows(extras && extras.processes ? extras.processes.gpu : [], "bytes", formatBytes)
+}
+
+function directoryRows(extras, mount) {
+  var dirs = extras && extras.directories ? extras.directories : {}
+  var entry = dirs[mount || "/"] || dirs["/"] || null
+  if (!entry) return []
+  var rows = namedRows(entry.items, "bytes", formatBytes)
+  if (rows.length === 0 && entry.scanning) return [{ name: "Measuring…", value: "" }]
+  return rows
+}
+
 if (typeof module !== "undefined") {
   module.exports = {
     clamp: clamp,
     isOn: isOn,
     fileUrlToPath: fileUrlToPath,
     emptySnapshot: emptySnapshot,
+    emptyExtras: emptyExtras,
     parseSnapshot: parseSnapshot,
+    parseExtras: parseExtras,
+    processCpuRows: processCpuRows,
+    processMemoryRows: processMemoryRows,
+    processGpuRows: processGpuRows,
+    directoryRows: directoryRows,
     primaryGpu: primaryGpu,
     diskForMount: diskForMount,
     formatPercent: formatPercent,
+    formatProcessPercent: formatProcessPercent,
     formatTemp: formatTemp,
     formatTempFull: formatTempFull,
     formatBytes: formatBytes,

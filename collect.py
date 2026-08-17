@@ -596,6 +596,370 @@ def pick_hottest(temps: list[dict]) -> dict | None:
     return pool[0][2]
 
 
+TOP_N = 5
+DIR_TTL_SEC = 15 * 60
+DIR_SCAN_TIMEOUT_SEC = 25
+SKIP_DIR_NAMES = {
+    "boot",
+    "dev",
+    "lost+found",
+    "media",
+    "mnt",
+    "proc",
+    "run",
+    "snap",
+    "swap",
+    "sys",
+    "tmp",
+}
+PAGE_SIZE = os.sysconf("SC_PAGE_SIZE") if hasattr(os, "sysconf") else 4096
+
+
+def short_name(raw: object) -> str:
+    text = str(raw or "").strip()
+    if not text:
+        return "?"
+    if len(text) > 1 and text[1] == ":" and "\\" in text:
+        text = text.split(" --", 1)[0]
+        return text.replace("\\", "/").split("/")[-1][:40] or "?"
+    token = text.split()[0]
+    return token.replace("\\", "/").split("/")[-1][:40] or "?"
+
+
+def comm_from_cmdline(pid: int, fallback: str) -> str:
+    raw = read_text(f"/proc/{pid}/cmdline")
+    if not raw:
+        return fallback
+    parts = [part for part in raw.split("\0") if part]
+    if not parts:
+        return fallback
+    return short_name(parts[0])
+
+
+def parse_stat(text: str) -> tuple[str, int] | None:
+    left = text.find("(")
+    right = text.rfind(")")
+    if left < 0 or right <= left:
+        return None
+    comm = text[left + 1 : right]
+    rest = text[right + 2 :].split()
+    if len(rest) < 13:
+        return None
+    try:
+        return comm, int(rest[11]) + int(rest[12])
+    except ValueError:
+        return None
+
+
+def iter_proc_dirs():
+    try:
+        entries = os.scandir("/proc")
+    except OSError:
+        return
+    with entries:
+        for entry in entries:
+            if entry.name.isdigit():
+                yield int(entry.name), entry.path
+
+
+def load_json(path: Path) -> dict:
+    raw = read_text(path)
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def write_json(path: Path, payload: dict) -> None:
+    tmp = path.with_suffix(".tmp")
+    try:
+        tmp.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
+        tmp.replace(path)
+    except OSError:
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+def collect_os_processes() -> tuple[list[dict], list[dict]]:
+    sample = cpu_sample()
+    total = sample[1] if sample else 0
+    state_path = runtime_dir() / "hamsti-vitals-procs.json"
+    prev = load_json(state_path)
+    prev_total = int(prev.get("total") or 0)
+    prev_procs = prev.get("procs") if isinstance(prev.get("procs"), dict) else {}
+    stale = (time.time() - float(prev.get("ts") or 0)) > 45
+
+    def snapshot_procs() -> list[dict]:
+        self_pid = os.getpid()
+        rows: list[dict] = []
+        for pid, path in iter_proc_dirs():
+            if pid == self_pid:
+                continue
+            stat = read_text(f"{path}/stat")
+            if not stat:
+                continue
+            parsed = parse_stat(stat)
+            if not parsed:
+                continue
+            comm, cpu_time = parsed
+            rss = 0
+            statm = read_text(f"{path}/statm")
+            if statm:
+                parts = statm.split()
+                if len(parts) > 1:
+                    try:
+                        rss = int(parts[1]) * PAGE_SIZE
+                    except ValueError:
+                        rss = 0
+            rows.append({"pid": pid, "name": short_name(comm), "cpuTime": cpu_time, "rss": rss})
+        return rows
+
+    rows = snapshot_procs()
+    if (not prev_procs or stale or prev_total <= 0) and total > 0:
+        time.sleep(0.06)
+        sample = cpu_sample()
+        total = sample[1] if sample else total
+        prev_total = int(prev.get("total") or 0) if prev_procs and not stale else 0
+        if prev_total <= 0:
+            prev_procs = {str(row["pid"]): row["cpuTime"] for row in rows}
+            rows = snapshot_procs()
+
+    delta_total = total - prev_total
+    cpu_rows: list[dict] = []
+    mem_rows: list[dict] = []
+    next_procs: dict[str, int] = {}
+    for row in rows:
+        pid_key = str(row["pid"])
+        next_procs[pid_key] = row["cpuTime"]
+        prev_time = prev_procs.get(pid_key)
+        percent = None
+        if prev_time is not None and delta_total > 0:
+            percent = max(0.0, min(100.0, (row["cpuTime"] - int(prev_time)) / delta_total * 100.0))
+        if percent is not None and percent > 0:
+            cpu_rows.append({"pid": row["pid"], "name": row["name"], "percent": round(percent, 1)})
+        if row["rss"] > 0:
+            mem_rows.append({"pid": row["pid"], "name": row["name"], "bytes": row["rss"]})
+
+    write_json(state_path, {"ts": time.time(), "total": total, "procs": next_procs})
+    cpu_rows.sort(key=lambda item: -item["percent"])
+    mem_rows.sort(key=lambda item: -item["bytes"])
+    cpu_rows = [row for row in cpu_rows if row["percent"] >= 0.1][:TOP_N]
+    mem_rows = mem_rows[:TOP_N]
+    for row in cpu_rows + mem_rows:
+        row["name"] = comm_from_cmdline(row["pid"], row["name"])
+    return cpu_rows, mem_rows
+
+
+def collect_gpu_processes() -> list[dict]:
+    try:
+        proc = subprocess.run(
+            [
+                "nvidia-smi",
+                "--query-compute-apps=pid,process_name,used_gpu_memory",
+                "--format=csv,noheader,nounits",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=1.0,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return []
+    if proc.returncode != 0 or not proc.stdout.strip():
+        return []
+
+    rows: list[dict] = []
+    for line in proc.stdout.splitlines():
+        cols = [part.strip() for part in line.split(",")]
+        if len(cols) < 3:
+            continue
+        pid = parse_num(cols[0])
+        used = bytes_from_mib(cols[-1])
+        if used is None or used <= 0:
+            continue
+        rows.append(
+            {
+                "pid": int(pid) if pid is not None else 0,
+                "name": short_name(",".join(cols[1:-1])),
+                "bytes": used,
+            }
+        )
+    rows.sort(key=lambda item: -item["bytes"])
+    return rows[:TOP_N]
+
+
+def du_cache_path() -> Path:
+    return runtime_dir() / "hamsti-vitals-du.json"
+
+
+def du_lock_path() -> Path:
+    return runtime_dir() / "hamsti-vitals-du.lock"
+
+
+def dir_scan_running() -> bool:
+    lock = du_lock_path()
+    if not lock.exists():
+        return False
+    try:
+        age = time.time() - lock.stat().st_mtime
+    except OSError:
+        return False
+    if age > 90:
+        try:
+            lock.unlink()
+        except OSError:
+            pass
+        return False
+    return True
+
+
+def spawn_dir_scan(mounts: list[str]) -> None:
+    if not mounts or dir_scan_running():
+        return
+    try:
+        subprocess.Popen(
+            [sys.executable, str(Path(__file__).resolve()), "--scan-dirs", *mounts],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    except OSError:
+        return
+
+
+def collect_directories(mounts: list[str]) -> dict:
+    cache = load_json(du_cache_path())
+    cached_mounts = cache.get("mounts") if isinstance(cache.get("mounts"), dict) else {}
+    scanning = dir_scan_running()
+    stale: list[str] = []
+    out: dict = {}
+    now = time.time()
+    for mount in mounts:
+        entry = cached_mounts.get(mount) if isinstance(cached_mounts.get(mount), dict) else {}
+        items = entry.get("items") if isinstance(entry.get("items"), list) else []
+        ts = float(entry.get("ts") or 0)
+        age = now - ts if ts else 10**9
+        if age > DIR_TTL_SEC:
+            stale.append(mount)
+        out[mount] = {
+            "scanning": scanning or (age > DIR_TTL_SEC and not items),
+            "items": items[:TOP_N],
+            "ts": ts,
+        }
+    if stale:
+        spawn_dir_scan(stale)
+    return out
+
+
+def first_level_dirs(mount: str) -> list[str]:
+    paths: list[str] = []
+    try:
+        entries = os.scandir(mount)
+    except OSError:
+        return paths
+    with entries:
+        for entry in entries:
+            name = entry.name
+            if name in SKIP_DIR_NAMES:
+                continue
+            try:
+                if not entry.is_dir(follow_symlinks=False):
+                    continue
+            except OSError:
+                continue
+            paths.append(entry.path)
+    paths.sort()
+    return paths
+
+
+def du_bytes(path: str, timeout: float) -> int | None:
+    try:
+        proc = subprocess.run(
+            ["du", "-s", "-x", "-B1", path],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if proc.returncode not in (0, 1) or not proc.stdout:
+        return None
+    num = parse_num(proc.stdout.split()[0] if proc.stdout.split() else "")
+    return int(num) if num is not None else None
+
+
+def scan_dirs(mounts: list[str]) -> None:
+    try:
+        os.nice(19)
+    except OSError:
+        pass
+    lock = du_lock_path()
+    try:
+        lock.write_text(str(os.getpid()), encoding="utf-8")
+    except OSError:
+        return
+
+    cache = load_json(du_cache_path())
+    cached_mounts = cache.get("mounts") if isinstance(cache.get("mounts"), dict) else {}
+    deadline = time.monotonic() + DIR_SCAN_TIMEOUT_SEC
+    try:
+        for mount in mounts:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0.5:
+                break
+            children = first_level_dirs(mount)
+            if not children:
+                continue
+            per = max(1.5, min(8.0, remaining / max(1, len(children))))
+            items: list[dict] = []
+            for child in children:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0.4:
+                    break
+                used = du_bytes(child, timeout=min(per, remaining))
+                if used is None or used <= 0:
+                    continue
+                items.append(
+                    {
+                        "path": child,
+                        "label": os.path.basename(child.rstrip("/")) or child,
+                        "bytes": used,
+                    }
+                )
+            items.sort(key=lambda item: -item["bytes"])
+            cached_mounts[mount] = {"ts": time.time(), "items": items[: max(TOP_N, 8)]}
+        write_json(du_cache_path(), {"mounts": cached_mounts})
+    finally:
+        try:
+            lock.unlink()
+        except OSError:
+            pass
+
+
+def collect_extras() -> dict:
+    cpu_rows, mem_rows = collect_os_processes()
+    disks = collect_disks()
+    mounts = [disk["mount"] for disk in disks if disk.get("mount")]
+    if not mounts:
+        mounts = ["/"]
+    return {
+        "ok": True,
+        "ts": time.time(),
+        "processes": {
+            "cpu": cpu_rows,
+            "memory": mem_rows,
+            "gpu": collect_gpu_processes(),
+        },
+        "directories": collect_directories(mounts),
+    }
+
+
 def collect() -> dict:
     cpu = collect_cpu()
     memory = collect_memory()
@@ -628,9 +992,14 @@ def collect() -> dict:
 
 
 def main() -> int:
-    pretty = "--pretty" in sys.argv[1:]
+    args = sys.argv[1:]
+    pretty = "--pretty" in args
     try:
-        snapshot = collect()
+        if "--scan-dirs" in args:
+            mounts = [arg for arg in args if arg not in {"--scan-dirs", "--pretty", "--extras"}]
+            scan_dirs(mounts or ["/"])
+            return 0
+        snapshot = collect_extras() if "--extras" in args else collect()
     except Exception as exc:  # pragma: no cover - last-resort guard
         snapshot = {"ok": False, "error": str(exc), "ts": time.time()}
     json.dump(snapshot, sys.stdout, indent=2 if pretty else None, separators=None if pretty else (",", ":"))

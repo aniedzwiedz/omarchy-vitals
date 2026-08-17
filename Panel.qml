@@ -11,6 +11,7 @@ Panel {
   manageIpc: false
 
   property var snapshot: Model.emptySnapshot()
+  property var extras: Model.emptyExtras()
   property var anchorItem: null
   property var hostWidget: null
   readonly property var barIdentity: hostWidget || root
@@ -27,6 +28,9 @@ Panel {
   readonly property var gpu: Model.primaryGpu(snapshot)
   readonly property var disks: snapshot && snapshot.disks ? snapshot.disks : []
   readonly property var temps: snapshot && snapshot.temps ? snapshot.temps : []
+  readonly property var cpuRows: Model.processCpuRows(extras)
+  readonly property var memoryRows: Model.processMemoryRows(extras)
+  readonly property var gpuRows: Model.processGpuRows(extras)
   readonly property string phrase: Model.statusPhrase(snapshot, warnPercent, warnTempC)
   readonly property string heroTemp: snapshot && snapshot.hottest
     ? Model.formatTempFull(snapshot.hottest.celsius, tempUnit)
@@ -70,11 +74,18 @@ Panel {
         if (t === "b" || t === "o") root.openMonitor()
       }
 
+      Flickable {
+        id: scroll
+        anchors.fill: parent
+        contentWidth: width
+        contentHeight: column.implicitHeight
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        interactive: contentHeight > height
+
       Column {
         id: column
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
+        width: scroll.width
         spacing: Style.space(14)
 
         Item {
@@ -162,6 +173,7 @@ Panel {
             root.cpu.cores ? (root.cpu.cores + " cores") : "",
             root.cpu.load1 !== null && root.cpu.load1 !== undefined ? ("load " + Model.formatLoad(root.cpu.load1)) : ""
           ].filter(function(part) { return part && part !== "—" }).join("  ·  ")
+          rows: root.cpuRows
         }
 
         MetricBlock {
@@ -174,6 +186,7 @@ Panel {
             + (root.memory.swapTotalBytes > 0
               ? ("  ·  swap " + Model.formatBytes(root.memory.swapUsedBytes))
               : "")
+          rows: root.memoryRows
         }
 
         MetricBlock {
@@ -194,6 +207,7 @@ Panel {
               parts.push(Math.round(Number(root.gpu.powerW)) + " W")
             return parts.join("  ·  ")
           }
+          rows: root.gpuRows
         }
 
         Repeater {
@@ -208,6 +222,7 @@ Panel {
             warned: Number(modelData.percent) >= root.warnPercent
             meta: Model.formatBytes(modelData.usedBytes) + " / " + Model.formatBytes(modelData.totalBytes)
               + (modelData.fstype ? ("  ·  " + modelData.fstype) : "")
+            rows: Model.directoryRows(root.extras, modelData.mount)
           }
         }
 
@@ -260,6 +275,7 @@ Panel {
           font.pixelSize: Style.font.caption
         }
       }
+      }
     }
   }
 
@@ -270,6 +286,7 @@ Panel {
     property real fraction: 0
     property bool warned: false
     property string meta: ""
+    property var rows: []
 
     width: parent ? parent.width : implicitWidth
     spacing: Style.space(6)
@@ -336,6 +353,40 @@ Panel {
       font.family: root.fontFamily
       font.pixelSize: Style.font.bodySmall
       elide: Text.ElideRight
+    }
+
+    Column {
+      visible: rows && rows.length > 0
+      width: parent.width
+      spacing: Style.space(3)
+
+      Repeater {
+        model: rows
+
+        Row {
+          required property var modelData
+          width: parent.width
+          spacing: Style.space(8)
+
+          Text {
+            width: Math.max(0, parent.width - rowValue.implicitWidth - parent.spacing)
+            text: modelData.name
+            color: root.foreground
+            opacity: 0.62
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.bodySmall
+            elide: Text.ElideRight
+          }
+
+          Text {
+            id: rowValue
+            text: modelData.value
+            color: root.foreground
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.bodySmall
+          }
+        }
+      }
     }
   }
 }

@@ -40,8 +40,13 @@ strip stays short; turn it on if you want capacity in the bar.
 **Panel**
 
 Usage bars for CPU, memory, each GPU, and each real filesystem, plus a
-temperature chip list. Values flip to the theme urgent color at the warning
-thresholds.
+temperature chip list. While the panel is open it also lists the top processes
+for CPU, memory, and GPU VRAM, and the largest top-level directories on each
+disk. Values flip to the theme urgent color at the warning thresholds.
+
+Those extras never run on the bar refresh path. Process lists are sampled only
+while the panel is open; directory sizes are measured in a niced background
+job and cached for 15 minutes.
 
 **Clicks**
 
