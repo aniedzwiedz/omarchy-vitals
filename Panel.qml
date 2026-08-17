@@ -18,9 +18,11 @@ Panel {
   property var hostWidget: null
   readonly property var barIdentity: hostWidget || root
 
-  readonly property color foreground: bar ? bar.foreground : Color.foreground
+  readonly property color foreground: bar ? bar.foreground : Color.popups.text
+  readonly property color accent: Color.accent
   readonly property color urgent: bar ? bar.urgent : Color.urgent
-  readonly property color dim: Qt.darker(foreground, 1.4)
+  readonly property color dim: Color.muted
+  readonly property color track: Style.hoverFillFor(foreground, Color.accent)
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   readonly property int refreshSec: Math.max(1, parseInt(setting("refreshIntervalSec", 2), 10) || 2)
   readonly property int warnPercent: Math.max(1, parseInt(setting("warnPercent", 90), 10) || 90)
@@ -46,6 +48,7 @@ Panel {
   readonly property var gpuRows: Model.processGpuRows(extras)
   readonly property string collector: Model.fileUrlToPath(Qt.resolvedUrl("collect.py"))
   readonly property string phrase: Model.statusPhrase(snapshot, warnPercent, warnTempC)
+  property string shownPhrase: phrase
   readonly property string heroTemp: snapshot && snapshot.hottest
     ? Model.formatTempFull(snapshot.hottest.celsius, tempUnit)
     : Model.formatTempFull(cpu.tempC, tempUnit)
@@ -102,6 +105,15 @@ Panel {
     root.close()
   }
 
+  onPhraseChanged: phraseSwap.restart()
+
+  SequentialAnimation {
+    id: phraseSwap
+    NumberAnimation { target: heroPhrase; property: "opacity"; to: 0; duration: 90 }
+    ScriptAction { script: root.shownPhrase = root.phrase }
+    NumberAnimation { target: heroPhrase; property: "opacity"; to: 1; duration: 180; easing.type: Easing.OutCubic }
+  }
+
   onOpenedChanged: {
     if (root.opened) root.refreshExtras()
     else root.settingsOpen = false
@@ -125,7 +137,7 @@ Panel {
   }
 
   function meterColor(warned) {
-    return warned ? root.urgent : root.foreground
+    return warned ? root.urgent : root.accent
   }
 
   KeyboardPanel {
@@ -169,11 +181,13 @@ Panel {
           Text {
             id: heroIcon
             text: "󰈐"
-            color: root.foreground
+            color: root.accent
             font.family: root.fontFamily
             font.pixelSize: Style.font.display
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
+
+            Behavior on color { ColorAnimation { duration: 220 } }
           }
 
           Column {
@@ -196,7 +210,8 @@ Panel {
             }
 
             Text {
-              text: root.phrase.toUpperCase()
+              id: heroPhrase
+              text: root.shownPhrase.toUpperCase()
               color: root.dim
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption
@@ -215,12 +230,14 @@ Panel {
 
             Text {
               text: root.heroTemp
-              color: root.foreground
+              color: Model.metricWarned("temp", root.snapshot, root.warnPercent, root.warnTempC) ? root.urgent : root.accent
               font.family: root.fontFamily
               font.pixelSize: Style.font.displayLarge
               font.bold: true
               horizontalAlignment: Text.AlignRight
               anchors.right: parent.right
+
+              Behavior on color { ColorAnimation { duration: 220 } }
             }
 
             Text {
@@ -324,8 +341,14 @@ Panel {
                 required property var modelData
                 implicitWidth: tempLabel.implicitWidth + Style.space(12)
                 implicitHeight: tempLabel.implicitHeight + Style.space(8)
-                color: "transparent"
-                borderSpec: Border.controlSpec("normal", root.foreground, Color.accent)
+                color: Number(modelData.celsius) >= root.warnTempC
+                  ? Style.hoverFillFor(root.urgent, Color.accent)
+                  : "transparent"
+                borderSpec: Border.controlSpec(
+                  Number(modelData.celsius) >= root.warnTempC ? "hover-cursor" : "normal",
+                  Number(modelData.celsius) >= root.warnTempC ? root.urgent : root.foreground,
+                  Color.accent
+                )
                 radius: Style.cornerRadius
 
                 Text {
@@ -365,11 +388,13 @@ Panel {
 
             Text {
               text: root.settingsOpen ? "▾" : "▸"
-              color: root.dim
+              color: root.settingsOpen ? root.accent : root.dim
               font.family: root.fontFamily
               font.pixelSize: Style.font.body
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
+
+              Behavior on color { ColorAnimation { duration: 140 } }
             }
 
             MouseArea {
@@ -379,8 +404,17 @@ Panel {
             }
           }
 
+          Item {
+            width: parent.width
+            height: root.settingsOpen ? settingsBody.implicitHeight : 0
+            clip: true
+            opacity: root.settingsOpen ? 1 : 0
+
+            Behavior on height { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+            Behavior on opacity { NumberAnimation { duration: 160 } }
+
           Column {
-            visible: root.settingsOpen
+            id: settingsBody
             width: parent.width
             spacing: Style.space(12)
 
@@ -550,6 +584,7 @@ Panel {
               }
             }
           }
+          }
         }
 
         Text {
@@ -597,12 +632,14 @@ Panel {
       Text {
         id: metricValue
         text: value
-        color: warned ? root.urgent : root.foreground
+        color: warned ? root.urgent : root.accent
         font.family: root.fontFamily
         font.pixelSize: Style.font.title
         font.bold: true
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
+
+        Behavior on color { ColorAnimation { duration: 180 } }
       }
     }
 
@@ -614,7 +651,7 @@ Panel {
         id: track
         anchors.fill: parent
         radius: height / 2
-        color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.12)
+        color: root.track
       }
 
       Rectangle {
@@ -622,10 +659,10 @@ Panel {
         anchors.verticalCenter: track.verticalCenter
         height: track.height
         radius: track.radius
-        color: warned ? root.urgent : root.foreground
+        color: warned ? root.urgent : root.accent
         width: Math.max(track.height, track.width * Math.max(0, Math.min(1, fraction)))
 
-        Behavior on width { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
+        Behavior on width { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
         Behavior on color { ColorAnimation { duration: 180 } }
       }
     }
@@ -656,8 +693,7 @@ Panel {
           Text {
             width: Math.max(0, parent.width - rowValue.implicitWidth - parent.spacing)
             text: modelData.name
-            color: root.foreground
-            opacity: 0.62
+            color: root.dim
             font.family: root.fontFamily
             font.pixelSize: Style.font.bodySmall
             elide: Text.ElideRight

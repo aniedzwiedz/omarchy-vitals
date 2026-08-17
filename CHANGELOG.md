@@ -8,6 +8,11 @@ more than once on the same day.
 
 ## [Unreleased]
 
+### Changed
+
+- Panel meters, hero, and chips follow theme accent / muted / urgent colors
+- Tasteful fade and meter animations on the dropdown
+
 ## [2026.08.17] - 2026-08-17
 
 ### Added
