@@ -24,8 +24,8 @@ Optional:
 - `btop` if you want the click action or Enter key to open a TUI monitor
 
 The collector reads `/proc`, `/sys/class/hwmon`, and `/sys/class/drm`, and
-writes only under `$XDG_RUNTIME_DIR`. It does not use `sudo`, install
-services, or start a second Quickshell process.
+writes only under `$XDG_RUNTIME_DIR`. No sudo or pkexec is required. The
+plugin does not install services or start a second Quickshell process.
 
 ## Install
 

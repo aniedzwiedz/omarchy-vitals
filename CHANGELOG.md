@@ -11,6 +11,7 @@ more than once on the same day.
 ### Changed
 
 - README documents requirements, removal, and a root `preview.png` for the marketplace
+- Release script no longer fetches remote git before running checks
 
 
 ## [2026.08.17.1] - 2026-08-17

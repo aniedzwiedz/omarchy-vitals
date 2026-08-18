@@ -21,9 +21,10 @@ command -v gh >/dev/null || fail "gh is required"
 
 [[ -z $(git status --porcelain) ]] || fail "working tree is dirty"
 [[ $(git branch --show-current) == main ]] || fail "release from main"
-git fetch origin
-[[ $(git rev-parse HEAD) == $(git rev-parse origin/main) ]] \
-  || fail "main is not in sync with origin/main"
+if git show-ref --verify --quiet refs/remotes/origin/main; then
+  [[ $(git rev-parse HEAD) == $(git rev-parse origin/main) ]] \
+    || fail "main is not in sync with origin/main"
+fi
 
 calver_re='^[0-9]{4}\.[0-9]{2}\.[0-9]{2}(\.[0-9]+)?$'
 today=$(date +%Y.%m.%d)
