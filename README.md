@@ -6,12 +6,26 @@
 
 A lightweight [Omarchy](https://omarchy.org/) / [Hyprland](https://hypr.land/) status-bar plugin for CPU, GPU, memory, disk, and temperatures. Native Quickshell widget — not a Waybar script.
 
-![Vitals panel](docs/panel.png)
+![Vitals panel](preview.png)
 
 - CPU, memory, GPU (NVIDIA via `nvidia-smi`, AMD via sysfs), disk, and hwmon temps
 - Click the bar for meters, top processes, and largest directories
 - Follows the active Omarchy theme (accent / muted / urgent)
 - Settings live in the panel accordion — poll rate, `CPU`/`MEM` text labels, units
+
+## Requirements
+
+- [Omarchy](https://omarchy.org/) Quattro with Quickshell
+- `python3` (standard library only — no pip packages, no extra install)
+
+Optional:
+
+- `nvidia-smi` for NVIDIA GPUs (AMD is read from sysfs)
+- `btop` if you want the click action or Enter key to open a TUI monitor
+
+The collector reads `/proc`, `/sys/class/hwmon`, and `/sys/class/drm`, and
+writes only under `$XDG_RUNTIME_DIR`. It does not use `sudo`, install
+services, or start a second Quickshell process.
 
 ## Install
 
@@ -28,6 +42,12 @@ omarchy bar move hamsti.vitals --section center --after omarchy.clock
 ```
 
 Update later with `omarchy plugin update hamsti.vitals`.
+
+## Remove
+
+```bash
+omarchy plugin remove hamsti.vitals
+```
 
 ## What you get
 

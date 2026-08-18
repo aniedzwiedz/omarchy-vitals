@@ -8,6 +8,10 @@ more than once on the same day.
 
 ## [Unreleased]
 
+### Changed
+
+- README documents requirements, removal, and a root `preview.png` for the marketplace
+
 
 ## [2026.08.17.1] - 2026-08-17
 
